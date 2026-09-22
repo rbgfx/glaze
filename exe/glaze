@@ -1,0 +1,92 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+require "tempfile"
+require "glaze"
+
+command = ARGV.shift
+case command
+when "new"
+  name = ARGV.shift || "shader"
+  raise ArgumentError, "shader name must contain only letters, digits and underscores" unless name.match?(/\A[a-zA-Z][a-zA-Z0-9_]*\z/)
+  path = File.join("shaders", "#{name}.rb")
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, "Glaze.shader :#{name} do\n  fragment do |frag_coord, resolution, u|\n    uv = frag_coord / resolution\n    vec3(uv.x, uv.y, 0.2)\n  end\nend\n")
+  puts path
+when "run"
+  path = ARGV.first&.start_with?("-") ? nil : ARGV.shift
+  size = [640, 360]
+  backend = :auto
+  renderer = :auto
+  fps = 60
+  frames = nil
+  output_dir = "."
+  from_png = nil
+  panel = false
+  OptionParser.new do |opts|
+    opts.on("--size SIZE") { |value| size = value.split("x").map(&:to_i) }
+    opts.on("--backend NAME") { |value| backend = value.to_sym }
+    opts.on("--renderer NAME") { |value| renderer = value.to_sym }
+    opts.on("--fps N", Integer) { |value| fps = value }
+    opts.on("--frames N", Integer) { |value| frames = value }
+    opts.on("--output-dir PATH") { |value| output_dir = value }
+    opts.on("--from-png PATH") { |value| from_png = value }
+    opts.on("--panel") { panel = true }
+  end.parse!(ARGV)
+  path ||= ARGV.shift
+  raise ArgumentError, "size must be WIDTHxHEIGHT" unless size.length == 2 && size.all?(&:positive?)
+  options = { width: size[0], height: size[1], backend: backend, renderer: renderer, fps: fps, frames: frames, output_dir: output_dir, panel: panel }
+  if from_png
+    source = Tessel.read(from_png).metadata.fetch("glaze:source")
+    Tempfile.create(["glaze-recovered-", ".rb"]) do |file|
+      file.write(source)
+      file.flush
+      Glaze.run_file(file.path, **options)
+    end
+  else
+    raise ArgumentError, "shader file is required" unless path
+    Glaze.run_file(path, **options)
+  end
+when "shot"
+  path = ARGV.shift
+  output = "shot.png"
+  time = 0.0
+  size = [640, 360]
+  OptionParser.new do |opts|
+    opts.on("-o PATH") { |value| output = value }
+    opts.on("--time SECONDS", Float) { |value| time = value }
+    opts.on("--size SIZE") { |value| size = value.split("x").map(&:to_i) }
+  end.parse!(ARGV)
+  Glaze.capture(Glaze.load_file(path), output, time: time, size: size)
+  puts output
+when "record"
+  path = ARGV.shift
+  output_dir = "frames"
+  fps = 30
+  seconds = 1.0
+  size = [640, 360]
+  OptionParser.new do |opts|
+    opts.on("-o DIR") { |value| output_dir = value }
+    opts.on("--fps N", Integer) { |value| fps = value }
+    opts.on("--seconds N", Float) { |value| seconds = value }
+    opts.on("--size SIZE") { |value| size = value.split("x").map(&:to_i) }
+  end.parse!(ARGV)
+  raise ArgumentError, "fps, seconds and dimensions must be positive" unless fps.positive? && seconds.positive? && size.length == 2 && size.all?(&:positive?)
+  definition = Glaze.load_file(path)
+  runner = Glaze::Runners::CPU.new(definition)
+  FileUtils.mkdir_p(output_dir)
+  (seconds * fps).ceil.times do |frame|
+    image = runner.render(width: size[0], height: size[1], time: frame.to_f / fps, frame: frame)
+    Glaze.save_capture(image, definition, File.join(output_dir, format("frame_%05d.png", frame)))
+  end
+  puts output_dir
+when "export"
+  path = ARGV.shift
+  output = ARGV.shift || "#{File.basename(path, ".rb")}.html"
+  Glaze.export_webgpu(Glaze.load_file(path), output)
+  puts output
+else
+  warn "usage: glaze new NAME | run FILE [--backend NAME] [--renderer NAME] [--panel] [--size WxH] | shot FILE [-o PATH] | record FILE [-o DIR] | export FILE [PATH]"
+  exit 1
+end

@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.1', '3.2', '3.3', '3.4', '4.0']
+    defaults:
+      run:
+        working-directory: main
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: main
+          persist-credentials: false
+      - name: Checkout tessel
+        uses: actions/checkout@v6
+        with:
+          repository: rbgfx/tessel
+          ref: main
+          path: tessel
+          persist-credentials: false
+      - name: Checkout rlsl
+        uses: actions/checkout@v6
+        with:
+          repository: rbgfx/rlsl
+          ref: main
+          path: rlsl
+          persist-credentials: false
+      - name: Checkout rbgl
+        uses: actions/checkout@v6
+        with:
+          repository: rbgfx/rbgl
+          ref: main
+          path: rbgl
+          persist-credentials: false
+      - name: Checkout larb
+        uses: actions/checkout@v6
+        with:
+          repository: rbgfx/larb
+          ref: main
+          path: larb
+          persist-credentials: false
+      - name: Checkout twiddle
+        uses: actions/checkout@v6
+        with:
+          repository: rbgfx/twiddle
+          ref: main
+          path: twiddle
+          persist-credentials: false
+      - name: Checkout glyphic
+        uses: actions/checkout@v6
+        with:
+          repository: rbgfx/glyphic
+          ref: main
+          path: glyphic
+          persist-credentials: false
+      - name: Checkout metaco
+        uses: actions/checkout@v6
+        with:
+          repository: rbgfx/metaco
+          ref: main
+          path: metaco
+          persist-credentials: false
+      - name: Resolve dependencies for this Ruby version
+        run: rm Gemfile.lock
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+          working-directory: main
+      - name: Build Larb extension
+        run: gem install rake-compiler --no-document && rake compile
+        working-directory: larb
+      - name: Run verification
+        run: bundle exec rake verify

@@ -1,14 +1,19 @@
-# Glaze
+<h1 align="center">Glaze</h1>
 
-> Live shader coding for Ruby, from a saved file to a window, PNG, or WebGPU page.
+<p align="center">Live shader coding for Ruby, from a saved file to a window, PNG, or WebGPU page.</p>
 
-[![Gem version](https://badge.fury.io/rb/glaze.svg)](https://rubygems.org/gems/glaze) [![Downloads](https://img.shields.io/gem/dt/glaze?label=downloads)](https://rubygems.org/gems/glaze) [![Ruby](https://img.shields.io/badge/ruby-%3E%3D3.1-CC342D?logo=ruby&logoColor=white)](https://www.ruby-lang.org/) [![CI](https://github.com/rbgfx/glaze/actions/workflows/main.yml/badge.svg)](https://github.com/rbgfx/glaze/actions/workflows/main.yml) [![License](https://img.shields.io/badge/license-MIT-750014.svg)](LICENSE.txt)
+<p align="center">
+  <a href="https://rubygems.org/gems/glaze"><img src="https://badge.fury.io/rb/glaze.svg" alt="Gem Version"></a>
+  <a href="https://rubygems.org/gems/glaze"><img src="https://img.shields.io/gem/dt/glaze?label=downloads" alt="Downloads"></a>
+  <a href="https://www.ruby-lang.org/"><img src="https://img.shields.io/badge/ruby-%3E%3D3.1-CC342D?logo=ruby&amp;logoColor=white" alt="Ruby Version"></a>
+  <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-750014.svg" alt="License"></a>
+</p>
 
-**[Features](#features) · [Installation](#installation) · [Requirements](#requirements) · [Quick start](#quick-start) · [Shader files](#shader-files) · [Development](#development) · [License](#license) · [Website](https://rbgfx.github.io/glaze/)**
+[Features](#features) · [Installation](#installation) · [Quick Start](#quick-start) · [Shader Files](#shader-files)
 
----
+***
 
-Glaze loads Ruby shader definitions, compiles them through RLSL, and renders them with RBGL. It supports live reload, headless output, and standalone WebGPU export.
+Glaze loads shader definitions written in Ruby, compiles them through RLSL, and renders them with RBGL. It supports live reload, headless output, parameter metadata, and WebGPU export.
 
 ## Features
 
@@ -39,13 +44,13 @@ Or install the released gem:
 gem install glaze
 ~~~
 
-## Requirements
+### Requirements
 
 - Ruby 3.1 or newer.
 - A C compiler for the CPU renderer and screenshot commands.
 - Metal rendering requires macOS and a Metal-capable device.
 
-## Quick start
+## Quick Start
 
 Run the included examples:
 
@@ -88,6 +93,10 @@ runner; the WebGPU exporter embeds the referenced PNG bytes in its HTML.
 bundle install
 bundle exec rake verify
 ~~~
+
+## Contributing
+
+Bug reports and pull requests are welcome at [rbgfx/glaze](https://github.com/rbgfx/glaze).
 
 ## License
 

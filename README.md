@@ -1,18 +1,14 @@
 # Glaze
 
-[![Gem version](https://badge.fury.io/rb/glaze.svg)](https://rubygems.org/gems/glaze)
-[![Downloads](https://img.shields.io/gem/dt/glaze?label=downloads)](https://rubygems.org/gems/glaze)
-[![CI](https://github.com/rbgfx/glaze/actions/workflows/main.yml/badge.svg)](https://github.com/rbgfx/glaze/actions/workflows/main.yml)
-[![Ruby](https://img.shields.io/badge/ruby-%3E%3D3.1-CC342D?logo=ruby&logoColor=white)](https://www.ruby-lang.org/)
-[![License](https://img.shields.io/badge/license-MIT-750014.svg)](LICENSE.txt)
-
 > Live shader coding for Ruby, from a saved file to a window, PNG, or WebGPU page.
 
-Glaze loads shader definitions written in Ruby, compiles them through rlsl, and
-renders them with rbgl. It supports live reload, headless output, parameter
-metadata, and WebGPU export.
+[![Gem version](https://badge.fury.io/rb/glaze.svg)](https://rubygems.org/gems/glaze) [![Downloads](https://img.shields.io/gem/dt/glaze?label=downloads)](https://rubygems.org/gems/glaze) [![Ruby](https://img.shields.io/badge/ruby-%3E%3D3.1-CC342D?logo=ruby&logoColor=white)](https://www.ruby-lang.org/) [![CI](https://github.com/rbgfx/glaze/actions/workflows/main.yml/badge.svg)](https://github.com/rbgfx/glaze/actions/workflows/main.yml) [![License](https://img.shields.io/badge/license-MIT-750014.svg)](LICENSE.txt)
 
-**[Features](#features) · [Installation](#installation) · [Quick start](#quick-start) · [Shader files](#shader-files) · [Development](#development)**
+**[Features](#features) · [Installation](#installation) · [Requirements](#requirements) · [Quick start](#quick-start) · [Shader files](#shader-files) · [Development](#development) · [License](#license) · [Website](https://rbgfx.github.io/glaze/)**
+
+---
+
+Glaze loads Ruby shader definitions, compiles them through RLSL, and renders them with RBGL. It supports live reload, headless output, and standalone WebGPU export.
 
 ## Features
 
@@ -43,8 +39,11 @@ Or install the released gem:
 gem install glaze
 ~~~
 
-The CPU renderer and screenshot commands require a C compiler. Metal rendering
-is available on macOS with a Metal-capable device.
+## Requirements
+
+- Ruby 3.1 or newer.
+- A C compiler for the CPU renderer and screenshot commands.
+- Metal rendering requires macOS and a Metal-capable device.
 
 ## Quick start
 

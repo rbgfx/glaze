@@ -11,6 +11,7 @@ gem "rbgl", path: "../rbgl"
 gem "larb", path: "../larb"
 gem "twiddle", path: "../twiddle"
 gem "glyphic", path: "../glyphic"
+gem "flipbook", path: "../flipbook"
 gem "metaco", path: "../metaco" if RUBY_PLATFORM.include?("darwin")
 
 gem "irb"

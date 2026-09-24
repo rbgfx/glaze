@@ -62,31 +62,63 @@ when "shot"
   puts output
 when "record"
   path = ARGV.shift
-  output_dir = "frames"
+  destination = "frames"
   fps = 30
   seconds = 1.0
   size = [640, 360]
+  record_format = nil
   OptionParser.new do |opts|
-    opts.on("-o DIR") { |value| output_dir = value }
+    opts.on("-o PATH") { |value| destination = value }
     opts.on("--fps N", Integer) { |value| fps = value }
     opts.on("--seconds N", Float) { |value| seconds = value }
     opts.on("--size SIZE") { |value| size = value.split("x").map(&:to_i) }
+    opts.on("--gif") do
+      raise OptionParser::InvalidArgument, "choose either --gif or --apng" if record_format
+      record_format = :gif
+    end
+    opts.on("--apng") do
+      raise OptionParser::InvalidArgument, "choose either --gif or --apng" if record_format
+      record_format = :apng
+    end
   end.parse!(ARGV)
   raise ArgumentError, "fps, seconds and dimensions must be positive" unless fps.positive? && seconds.positive? && size.length == 2 && size.all?(&:positive?)
+  raise ArgumentError, "shader file is required" unless path
   definition = Glaze.load_file(path)
   runner = Glaze::Runners::CPU.new(definition)
-  FileUtils.mkdir_p(output_dir)
-  (seconds * fps).ceil.times do |frame|
-    image = runner.render(width: size[0], height: size[1], time: frame.to_f / fps, frame: frame)
-    Glaze.save_capture(image, definition, File.join(output_dir, format("frame_%05d.png", frame)))
+  frame_count = (seconds * fps).ceil
+  if record_format
+    begin
+      require "flipbook"
+    rescue LoadError => error
+      raise LoadError, "glaze record --#{record_format} requires the optional flipbook gem", cause: error
+    end
+    output = destination == "frames" ? "#{File.basename(path, ".rb")}.#{record_format == :apng ? "apng" : "gif"}" : destination
+    valid_extensions = record_format == :gif ? [".gif"] : %w[.png .apng]
+    raise ArgumentError, "#{record_format} output must use #{valid_extensions.join(" or ")}" unless valid_extensions.include?(File.extname(output).downcase)
+    writer_class = record_format == :gif ? Flipbook::GIF::Writer : Flipbook::APNG::Writer
+    options = { width: size[0], height: size[1], loop: true }
+    options[:palette] = :per_frame if record_format == :gif
+    writer_class.open(output, **options) do |writer|
+      frame_count.times do |frame|
+        image = runner.render(width: size[0], height: size[1], time: frame.to_f / fps, frame: frame)
+        writer.add(image, delay: Rational(1, fps))
+      end
+    end
+    puts output
+  else
+    FileUtils.mkdir_p(destination)
+    frame_count.times do |frame|
+      image = runner.render(width: size[0], height: size[1], time: frame.to_f / fps, frame: frame)
+      Glaze.save_capture(image, definition, File.join(destination, format("frame_%05d.png", frame)))
+    end
+    puts destination
   end
-  puts output_dir
 when "export"
   path = ARGV.shift
   output = ARGV.shift || "#{File.basename(path, ".rb")}.html"
   Glaze.export_webgpu(Glaze.load_file(path), output)
   puts output
 else
-  warn "usage: glaze new NAME | run FILE [--backend NAME] [--renderer NAME] [--panel] [--size WxH] | shot FILE [-o PATH] | record FILE [-o DIR] | export FILE [PATH]"
+  warn "usage: glaze new NAME | run FILE [--backend NAME] [--renderer NAME] [--panel] [--size WxH] | shot FILE [-o PATH] | record FILE [-o DIR] [--gif|--apng] | export FILE [PATH]"
   exit 1
 end

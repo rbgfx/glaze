@@ -58,8 +58,12 @@ Run the included examples:
 glaze run examples/plasma.rb
 glaze shot examples/plasma.rb --time 1.5 --size 640x360 -o shot.png
 glaze record examples/plasma.rb --seconds 2 --fps 30 -o frames
+glaze record examples/plasma.rb --seconds 2 --fps 30 --gif -o plasma.gif
+glaze record examples/plasma.rb --seconds 2 --fps 30 --apng -o plasma.apng
 glaze export examples/plasma.rb plasma.html
 ~~~
+
+`glaze record` writes PNG frames by default. The `--gif` and `--apng` options stream an animation through the optional Flipbook gem; with either option, `-o` names the output file.
 
 Run a fixed number of headless CPU frames:
 

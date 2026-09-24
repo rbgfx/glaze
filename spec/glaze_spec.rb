@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require "tmpdir"
+require "open3"
+require "rbconfig"
+require "flipbook"
 
 RSpec.describe Glaze do
   it "has a version number" do
@@ -65,6 +68,25 @@ RSpec.describe Glaze do
       Glaze.run_file(path, width: 2, height: 2, backend: :file, frames: 2, output_dir: dir)
       expect(Dir[File.join(dir, "*.ppm")].length).to eq(2)
       expect(File.read(File.join(dir, "frame_00000.ppm"))).to start_with("P3\n2 2\n255\n")
+    end
+  end
+
+  it "records shader frames as GIF or APNG when requested" do
+    root = File.expand_path("..", __dir__)
+    shader = File.join(root, "examples", "gradient.rb")
+    Dir.mktmpdir do |directory|
+      { "--gif" => "record.gif", "--apng" => "record.apng" }.each do |flag, name|
+        output = File.join(directory, name)
+        stdout, stderr, status = Open3.capture3(ENV.to_h, RbConfig.ruby, "-Ilib", "exe/glaze", "record", shader,
+                                               flag, "--seconds", "0.2", "--fps", "10", "--size", "4x3", "-o", output, chdir: root)
+        expect(status.success?).to be(true), stderr
+        expect(stdout).to eq("#{output}\n")
+        if flag == "--gif"
+          expect(Flipbook.read(output).length).to eq(2)
+        else
+          expect(File.binread(output)).to include("acTL")
+        end
+      end
     end
   end
 

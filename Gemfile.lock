@@ -29,7 +29,7 @@ PATH
 PATH
   remote: ../tessel
   specs:
-    tessel (0.1.0)
+    tessel (0.2.0)
 
 PATH
   remote: ../twiddle
@@ -131,7 +131,7 @@ CHECKSUMS
   rspec-expectations (3.13.5)
   rspec-mocks (3.13.8)
   rspec-support (3.13.7)
-  tessel (0.1.0)
+  tessel (0.2.0)
   tsort (0.2.0)
   twiddle (0.1.0)
 

@@ -505,83 +505,19 @@ module Glaze
           { name: param.name, type: param.type, default: param.default,
             range: param.range && [param.range.begin, param.range.end], exclude_end: param.range&.exclude_end?, step: param.step }
         end
+        script_json = ->(value) { JSON.generate(value).gsub("</", "<\\/") }
+        runner = File.read(File.expand_path("glaze/webgpu_runner.js", __dir__))
         html = <<~HTML
-          <!doctype html><meta charset="utf-8"><title>#{CGI.escapeHTML(definition.name.to_s)}</title>
-          <style>html,body{margin:0;width:100%;height:100%;background:#111;color:#fff;font:14px sans-serif}canvas{width:100%;height:100%;display:block}#panel{position:fixed;top:12px;left:12px;background:#000a;padding:12px}label{display:block}</style>
+          <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>#{CGI.escapeHTML(definition.name.to_s)}</title>
+          <style>html,body{margin:0;width:100%;height:100%;background:#111;color:#eee;font:14px sans-serif}canvas{width:100%;height:100%;display:block}#panel{position:fixed;top:12px;left:12px;background:#000a;padding:12px}label{display:block}</style>
           <canvas></canvas><div id="panel"><div id="status"></div><div id="params"></div></div>
-          <script>
-          const shaderSource = #{JSON.generate(source).gsub("</", "<\\/")};
-          const layout = #{JSON.generate(layout)};
-          const params = #{JSON.generate(params)};
-          const images = #{JSON.generate(images)};
-          const canvas = document.querySelector('canvas');
-          const status = document.querySelector('#status');
-          const values = Object.fromEntries(params.map(p => [p.name, p.default]));
-          for (const p of params) {
-            if (!p.range || !['float', 'int'].includes(p.type)) continue;
-            const label = document.createElement('label');
-            const input = document.createElement('input');
-            input.type = 'range'; input.min = p.range[0]; input.max = p.exclude_end ? (p.type === 'int' ? p.range[1] - 1 : p.range[1] - Number.EPSILON) : p.range[1];
-            input.step = p.step ?? (p.type === 'int' ? 1 : 'any'); input.value = p.default;
-            const caption = document.createElement('span');
-            input.oninput = () => { values[p.name] = Number(input.value); caption.textContent = `${p.name}: ${input.value}`; };
-            input.oninput(); label.append(caption, input); document.querySelector('#params').append(label);
-          }
-          const mouse = [0, 0, 0, 0];
-          function move(e) { const r = canvas.getBoundingClientRect(); mouse[0] = (e.clientX-r.left)*canvas.width/r.width; mouse[1] = canvas.height-(e.clientY-r.top)*canvas.height/r.height; }
-          canvas.onpointermove = move;
-          canvas.onpointerdown = e => { move(e); mouse[2] = mouse[0]; mouse[3] = mouse[1]; };
-          canvas.onpointerup = e => { move(e); mouse[2] = -Math.abs(mouse[2]); mouse[3] = -Math.abs(mouse[3]); };
-          async function start() {
-            if (!navigator.gpu) throw new Error('WebGPU is not available');
-            const adapter = await navigator.gpu.requestAdapter();
-            if (!adapter) throw new Error('No WebGPU adapter');
-            const device = await adapter.requestDevice();
-            const context = canvas.getContext('webgpu');
-            const format = navigator.gpu.getPreferredCanvasFormat();
-            context.configure({device, format, alphaMode: 'opaque'});
-            const compute = device.createComputePipeline({layout:'auto',compute:{module:device.createShaderModule({code:shaderSource}),entryPoint:'main'}});
-            const imageBindings = [];
-            for (const [index, image] of images.entries()) {
-              const bitmap = await createImageBitmap(await (await fetch(image.data)).blob());
-              const texture = device.createTexture({size:[bitmap.width,bitmap.height],format:'rgba8unorm',usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST});
-              device.queue.copyExternalImageToTexture({source:bitmap},{texture},[bitmap.width,bitmap.height]);
-              imageBindings.push({binding:2+index*2,resource:texture.createView()},
-                                 {binding:3+index*2,resource:device.createSampler({magFilter:'linear',minFilter:'linear',addressModeU:'clamp-to-edge',addressModeV:'clamp-to-edge'})});
-              bitmap.close();
-            }
-            const presentSource = `@group(0) @binding(0) var image: texture_2d<f32>;
-              @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4<f32>{var p=array<vec2<f32>,3>(vec2(-1.0,-1.0),vec2(3.0,-1.0),vec2(-1.0,3.0));return vec4(p[i],0.0,1.0);}
-              @fragment fn fs(@builtin(position) p:vec4<f32>)->@location(0) vec4<f32>{return textureLoad(image,vec2<i32>(p.xy),0);}`;
-            const present = device.createRenderPipeline({layout:'auto',vertex:{module:device.createShaderModule({code:presentSource}),entryPoint:'vs'},fragment:{module:device.createShaderModule({code:presentSource}),entryPoint:'fs',targets:[{format}]},primitive:{topology:'triangle-list'}});
-            const uniform = device.createBuffer({size:layout.size,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
-            let texture, computeGroup, presentGroup, frame = 0;
-            function resize() {
-              const width = Math.max(1, Math.round(canvas.clientWidth * devicePixelRatio));
-              const height = Math.max(1, Math.round(canvas.clientHeight * devicePixelRatio));
-              if (canvas.width === width && canvas.height === height && texture) return;
-              canvas.width = width; canvas.height = height; texture?.destroy();
-              texture = device.createTexture({size:[width,height],format:'rgba8unorm',usage:GPUTextureUsage.STORAGE_BINDING|GPUTextureUsage.TEXTURE_BINDING});
-              const view = texture.createView();
-              computeGroup = device.createBindGroup({layout:compute.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:uniform}},{binding:1,resource:view},...imageBindings]});
-              presentGroup = device.createBindGroup({layout:present.getBindGroupLayout(0),entries:[{binding:0,resource:view}]});
-            }
-            function draw(now) {
-              resize();
-              const data = new ArrayBuffer(layout.size), view = new DataView(data);
-              const put = (name, value) => { const field=layout.fields[name]; if(!field)return; const values=Array.isArray(value)?value:[value]; values.forEach((v,i)=>{const offset=field.offset+i*4; if(field.type==='int'||field.type==='bool')view.setInt32(offset,Number(v),true);else view.setFloat32(offset,Number(v),true);}); };
-              put('resolution',[canvas.width,canvas.height]); put('time',now/1000); put('frame',frame++); put('mouse',mouse);
-              for (const p of params) put(p.name,values[p.name]);
-              device.queue.writeBuffer(uniform,0,data);
-              const encoder=device.createCommandEncoder(), pass=encoder.beginComputePass();
-              pass.setPipeline(compute);pass.setBindGroup(0,computeGroup);pass.dispatchWorkgroups(Math.ceil(canvas.width/8),Math.ceil(canvas.height/8));pass.end();
-              const render=encoder.beginRenderPass({colorAttachments:[{view:context.getCurrentTexture().createView(),loadOp:'clear',storeOp:'store'}]});
-              render.setPipeline(present);render.setBindGroup(0,presentGroup);render.draw(3);render.end();
-              device.queue.submit([encoder.finish()]);requestAnimationFrame(draw);
-            }
-            status.textContent=''; requestAnimationFrame(draw);
-          }
-          start().catch(error => {status.textContent=error.message; console.error(error);});
+          <script>#{runner}
+          const shaderSource = #{script_json.call(source)};
+          const layout = #{script_json.call(layout)};
+          const params = #{script_json.call(params)};
+          const images = #{script_json.call(images)};
+          GlazeWGSL.run(document.querySelector("canvas"), shaderSource, layout, { params, images });
           </script>
         HTML
         File.write(path, html)

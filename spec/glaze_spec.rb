@@ -221,7 +221,7 @@ RSpec.describe Glaze do
       output = File.join(directory, "textured.html")
       Glaze.export_webgpu(definition, output)
       html = File.read(output)
-      expect(html).to include("data:image/png;base64,", "copyExternalImageToTexture", "binding:2+index*2")
+      expect(html).to include("data:image/png;base64,", "copyExternalImageToTexture", "binding: 2 + index * 2")
     end
   end
 end

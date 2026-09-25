@@ -3,6 +3,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to publish (vX.Y.Z)
+        required: false
+        type: string
 permissions: {}
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -19,18 +25,30 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
+      - name: Prepare release Gemfile outside the worktree
+        run: |
+          cp Gemfile .git/release.Gemfile
+          sed -i 's/^gemspec$/gemspec path: ENV.fetch("GITHUB_WORKSPACE")/' .git/release.Gemfile
       - name: Set up Ruby
         uses: ruby/setup-ruby@984c0c890880bbf811283d6f09c4607c62d210a4 # v1.323.0
         with:
           ruby-version: '3.2'
           bundler: default
       - run: bundle install --full-index
+        env:
+          BUNDLE_GEMFILE: ${{ github.workspace }}/.git/release.Gemfile
       - name: Verify tag and version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           version="$(ruby -e 'print Gem::Specification.load(Dir.glob("*.gemspec").fetch(0)).version')"
-          test "$GITHUB_REF_NAME" = "v$version"
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$RELEASE_TAG" = "v$version"
       - name: Test and build
+        env:
+          BUNDLE_GEMFILE: ${{ github.workspace }}/.git/release.Gemfile
         run: |
           bundle exec rake
           gemspec="$(find . -maxdepth 1 -name '*.gemspec' -print -quit)"
@@ -38,11 +56,14 @@ jobs:
           ruby -rrubygems/package -e 'abort "WebGPU runner is missing from the gem" unless Gem::Package.new(ARGV.fetch(0)).contents.include?("lib/glaze/webgpu_runner.js")' "$RUNNER_TEMP/package.gem"
       - name: Publish through RubyGems trusted publishing
         uses: rubygems/release-gem@7f9650160c1a4e7989fdc9855807bdbd421d8b6b # v1.4.1
+        env:
+          BUNDLE_GEMFILE: ${{ github.workspace }}/.git/release.Gemfile
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${RELEASE_TAG#v}"
           awk -v version="$version" '
             $0 == "## " version || $0 == "## [" version "]" || index($0, "## " version " -") == 1 || index($0, "## [" version "] -") == 1 { found = 1; next }
             found && /^## / { exit }
@@ -50,4 +71,6 @@ jobs:
             END { if (!found) exit 1 }
           ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
           grep -q '[^[:space:]]' "$RUNNER_TEMP/release-notes.md"
-          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-notes.md"
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi

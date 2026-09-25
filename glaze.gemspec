@@ -5,7 +5,7 @@ require_relative "lib/glaze/version"
 Gem::Specification.new do |spec|
   spec.name = "glaze"
   spec.version = Glaze::VERSION
-  spec.authors = ["ydah"]
+  spec.authors = ["Yudai Takada"]
   spec.email = ["t.yudai92@gmail.com"]
 
   spec.summary = "Live coding tools for Ruby shaders"

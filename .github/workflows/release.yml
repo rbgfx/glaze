@@ -20,24 +20,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Checkout tessel
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: rbgfx/tessel
-          ref: main
-          path: tessel
-          persist-credentials: false
-      - name: Checkout rlsl
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: rbgfx/rlsl
-          ref: main
-          path: rlsl
-          persist-credentials: false
-      - name: Link local dependencies
-        run: |
-          ln -s "$GITHUB_WORKSPACE/tessel" "$GITHUB_WORKSPACE/../tessel"
-          ln -s "$GITHUB_WORKSPACE/rlsl" "$GITHUB_WORKSPACE/../rlsl"
       - name: Set up Ruby
         uses: ruby/setup-ruby@984c0c890880bbf811283d6f09c4607c62d210a4 # v1.323.0
         with:
@@ -53,6 +35,7 @@ jobs:
           bundle exec rake
           gemspec="$(find . -maxdepth 1 -name '*.gemspec' -print -quit)"
           gem build --strict "$gemspec" --output "$RUNNER_TEMP/package.gem"
+          ruby -rrubygems/package -e 'abort "WebGPU runner is missing from the gem" unless Gem::Package.new(ARGV.fetch(0)).contents.include?("lib/glaze/webgpu_runner.js")' "$RUNNER_TEMP/package.gem"
       - name: Publish through RubyGems trusted publishing
         uses: rubygems/release-gem@7f9650160c1a4e7989fdc9855807bdbd421d8b6b # v1.4.1
       - name: Create GitHub release

@@ -6,6 +6,11 @@ require "rbconfig"
 require "flipbook"
 
 RSpec.describe Glaze do
+  def stub_metaco
+    Object.send(:remove_const, :Metaco) if Object.autoload?(:Metaco)
+    stub_const("Metaco", Module.new)
+  end
+
   it "has a version number" do
     expect(Glaze::VERSION).not_to be nil
   end
@@ -193,7 +198,7 @@ RSpec.describe Glaze do
   end
 
   it "loads texture params relative to the shader and releases them after Metal use" do
-    metaco = stub_const("Metaco", Module.new)
+    metaco = stub_metaco
     Dir.mktmpdir do |directory|
       image = Tessel::Image.new(1, 1, fill: [255, 0, 0, 255])
       image.write(File.join(directory, "noise.png"))
@@ -216,7 +221,7 @@ RSpec.describe Glaze do
   end
 
   it "releases uploaded textures if Metal compilation fails" do
-    metaco = stub_const("Metaco", Module.new)
+    metaco = stub_metaco
     Dir.mktmpdir do |directory|
       Tessel::Image.new(1, 1).write(File.join(directory, "noise.png"))
       definition = Glaze::Definition.new(:textured)

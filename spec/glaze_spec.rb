@@ -193,7 +193,7 @@ RSpec.describe Glaze do
   end
 
   it "loads texture params relative to the shader and releases them after Metal use" do
-    require "metaco"
+    metaco = stub_const("Metaco", Module.new)
     Dir.mktmpdir do |directory|
       image = Tessel::Image.new(1, 1, fill: [255, 0, 0, 255])
       image.write(File.join(directory, "noise.png"))
@@ -202,21 +202,21 @@ RSpec.describe Glaze do
       definition.instance_variable_set(:@file, File.join(directory, "shader.rb"))
       shader = double("Metal shader")
       allow(definition).to receive(:rlsl_builder).and_return(double(build_metal_shader: shader))
-      expect(Metaco).to receive(:texture_create).with(:handle, 1, 1, image.bytes).and_return(:texture)
+      expect(metaco).to receive(:texture_create).with(:handle, 1, 1, image.bytes).and_return(:texture)
       expect(shader).to receive(:prepare).with(:handle)
       runner = Glaze::Runners::Metal.new(definition, :handle)
       expect(shader).to receive(:render_metal).with(:handle, 1, 1, hash_including(time: 0.0), textures: { noise: :texture })
       runner.render(width: 1, height: 1)
-      expect(Metaco).to receive(:read_pixels).with(:handle).and_return(image.bytes)
+      expect(metaco).to receive(:read_pixels).with(:handle).and_return(image.bytes)
       expect(runner.read_image(1, 1).bytes).to eq(image.bytes)
-      expect(Metaco).to receive(:texture_destroy).with(:texture)
+      expect(metaco).to receive(:texture_destroy).with(:texture)
       runner.close
       expect { Glaze::Runners::CPU.new(definition) }.to raise_error(Glaze::Error, /Metal/)
     end
   end
 
   it "releases uploaded textures if Metal compilation fails" do
-    require "metaco"
+    metaco = stub_const("Metaco", Module.new)
     Dir.mktmpdir do |directory|
       Tessel::Image.new(1, 1).write(File.join(directory, "noise.png"))
       definition = Glaze::Definition.new(:textured)
@@ -224,9 +224,9 @@ RSpec.describe Glaze do
       definition.instance_variable_set(:@file, File.join(directory, "shader.rb"))
       shader = double("bad Metal shader")
       allow(definition).to receive(:rlsl_builder).and_return(double(build_metal_shader: shader))
-      allow(Metaco).to receive(:texture_create).and_return(:texture)
+      allow(metaco).to receive(:texture_create).and_return(:texture)
       allow(shader).to receive(:prepare).and_raise(RuntimeError, "bad shader")
-      expect(Metaco).to receive(:texture_destroy).with(:texture)
+      expect(metaco).to receive(:texture_destroy).with(:texture)
 
       expect { Glaze::Runners::Metal.new(definition, :handle) }.to raise_error(RuntimeError, "bad shader")
     end

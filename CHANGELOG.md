@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.2] - 2026-09-26
+
+- Prevent `glaze new` from overwriting an existing shader.
+- Reject non-finite shader uniform defaults.
+
 ## [0.1.1] - 2026-09-25
 
 - Make the shared WebGPU runner available in the installed gem.

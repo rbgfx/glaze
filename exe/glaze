@@ -12,7 +12,9 @@ when "new"
   raise ArgumentError, "shader name must contain only letters, digits and underscores" unless name.match?(/\A[a-zA-Z][a-zA-Z0-9_]*\z/)
   path = File.join("shaders", "#{name}.rb")
   FileUtils.mkdir_p(File.dirname(path))
-  File.write(path, "Glaze.shader :#{name} do\n  fragment do |frag_coord, resolution, u|\n    uv = frag_coord / resolution\n    vec3(uv.x, uv.y, 0.2)\n  end\nend\n")
+  File.open(path, File::WRONLY | File::CREAT | File::EXCL) do |file|
+    file.write("Glaze.shader :#{name} do\n  fragment do |frag_coord, resolution, u|\n    uv = frag_coord / resolution\n    vec3(uv.x, uv.y, 0.2)\n  end\nend\n")
+  end
   puts path
 when "run"
   path = ARGV.first&.start_with?("-") ? nil : ARGV.shift

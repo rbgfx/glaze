@@ -15,6 +15,21 @@ RSpec.describe Glaze do
     expect(Glaze::VERSION).not_to be nil
   end
 
+  it "does not overwrite an existing shader when creating one" do
+    root = File.expand_path("..", __dir__)
+    Dir.mktmpdir do |directory|
+      FileUtils.mkdir_p(File.join(directory, "shaders"))
+      path = File.join(directory, "shaders", "existing.rb")
+      File.write(path, "my shader\n")
+
+      _stdout, _stderr, status = Open3.capture3(ENV.to_h, RbConfig.ruby, "-I#{root}/lib", File.join(root, "exe/glaze"),
+                                                "new", "existing", chdir: directory)
+
+      expect(status.success?).to be(false)
+      expect(File.read(path)).to eq("my shader\n")
+    end
+  end
+
   it "collects params and renders a fragment" do
     definition = Glaze.shader(:solid) do
       params { float :brightness, default: 0.5, range: 0.0..1.0 }

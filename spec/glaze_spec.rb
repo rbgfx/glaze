@@ -153,6 +153,14 @@ RSpec.describe Glaze do
     expect(state.values[:value]).to eq(1)
   end
 
+  it "rejects non-finite uniform defaults" do
+    context = Glaze::ParamsContext.new
+    [Float::INFINITY, -Float::INFINITY, Float::NAN].each do |value|
+      expect { context.float(:gain, default: value) }.to raise_error(ArgumentError, /finite/)
+      expect { context.vec2(:offset, default: [0.0, value]) }.to raise_error(ArgumentError, /finite/)
+    end
+  end
+
   it "does not reload a watcher for comment or whitespace changes" do
     Dir.mktmpdir do |directory|
       path = File.join(directory, "shader.rb")

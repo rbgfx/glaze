@@ -57,6 +57,7 @@ module Glaze
       case type
       when :float
         raise TypeError, "float uniform default must be numeric" unless default.is_a?(Numeric)
+        raise ArgumentError, "float uniform default must be finite" unless default.real? && default.to_f.finite?
       when :int
         raise TypeError, "int uniform default must be an integer" unless default.is_a?(Integer)
       when :bool
@@ -66,6 +67,7 @@ module Glaze
         raise TypeError, "vector uniform default must be an array" unless default.is_a?(Array)
         raise ArgumentError, "vector uniform default has the wrong length" unless default.length == size
         raise TypeError, "vector uniform default must be numeric" unless default.all? { |value| value.is_a?(Numeric) }
+        raise ArgumentError, "vector uniform default must be finite" unless default.all? { |value| value.real? && value.to_f.finite? }
       end
       if range
         raise ArgumentError, "uniform range is only valid for numeric uniforms" unless %i[float int].include?(type)
